@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: birdcam
+  namespace: birdcam
+  labels:
+    app: birdcam
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: birdcam
+  template:
+    metadata:
+      labels:
+        app: birdcam
+    spec:
+      containers:
+      - name: videostreamer
+        image: danhigham:videostreamer
+        command: ["videostreamer"]
+        args: ["-format rtsp", "-input $INPUT_STREAM"]
+        ports:
+        - containerPort: 8080
+        env:
+        - name: INPUT_STREAM
+          valueFrom:
+            secretKeyRef:
+              name: input-stream
+              key: value
+
+      - name: birdcam
+        image: golang:alpine
+        command: ["go get github.com/danhigham/birdcam && go run $GOPATH/src/github.com/danhigham/birdcam/httpserver/main.go"]
+        ports:
+        - containerPort: 8080
+        env:
+        - name: STREAM_URL 
+          value: https://birdcam.high.am/stream
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: birdcam
+  name: birdcam-http
+spec:
+  selector:
+    app: birdcam
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  namespace: birdcam
+  name: birdcam-ingress
+spec:
+  tls:
+  - hosts:
+    - plot.home.high.am
+    secretName: home-secret
+  rules:
+  - host: plot.home.high.am
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: birdcam-http
+          servicePort: 8080
