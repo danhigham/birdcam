@@ -47,7 +47,7 @@ spec:
       - name: videostreamer
         image: danhigham/videostreamer
         command: ["videostreamer"]
-        args: ["-verbose=true", "-fcgi=false", "-format=rtsp", "-input=$(INPUT_STREAM)"]
+        args: ["-verbose=false", "-fcgi=false", "-format=rtsp", "-input=$(INPUT_STREAM)"]
         ports:
         - containerPort: 8080
         env:
