@@ -6,17 +6,35 @@
     <title>videostreamer</title>
     <meta name="viewport" content="width=device-width, user-scalable=no">
 
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+
     <style>
       video {
-        max-width: 100%;
+        width: 100%;
+      }
+
+      div.header { margin: 10px 0px 10px 0; }
+
+      .pull-right {
+        float: right;
       }
     </style>
   </head>
   <body>
+    <div class="container">
+      <div class="header clearfix">
+        <nav>
+          <ul class="nav nav-pills pull-right">
+            <li role="presentation"><a target="_new" href="http://github.com/danhigham/birdcam">Github</a></li>
+          </ul>
+        </nav>
+        <h3 class="text-muted">Birdcam</h3>
+      </div>
 
-    <h1>videostreamer</h1>
-
-    <video src="{{stream_url}}" autoplay controls></video>
+      <div class="jumbotron">
+        <video src="{{stream_url}}" autoplay controls></video>
+      </div>
+    </div>
   </body>
 </html>
 
