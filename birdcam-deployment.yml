@@ -6,7 +6,7 @@ metadata:
   labels:
     app: birdcam
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: birdcam
@@ -16,10 +16,38 @@ spec:
         app: birdcam
     spec:
       containers:
+      - name: birdcam
+        image: golang
+        command: ["sh"]
+        args: ["-c", "go get github.com/danhigham/birdcam/httpserver && cd $GOPATH/src/github.com/danhigham/birdcam/httpserver && go run main.go"]
+        ports:
+        - containerPort: 8080
+        env:
+        - name: STREAM_URL 
+          value: https://birdcam.high.am/stream
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: birdcam-stream
+  namespace: birdcam
+  labels:
+    app: birdcam-stream
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: birdcam-stream
+  template:
+    metadata:
+      labels:
+        app: birdcam-stream
+    spec:
+      containers:
       - name: videostreamer
-        image: danhigham:videostreamer
+        image: danhigham/videostreamer
         command: ["videostreamer"]
-        args: ["-format rtsp", "-input $INPUT_STREAM"]
+        args: ["-verbose=true", "-fcgi=false", "-format=rtsp", "-input=$(INPUT_STREAM)"]
         ports:
         - containerPort: 8080
         env:
@@ -28,15 +56,6 @@ spec:
             secretKeyRef:
               name: input-stream
               key: value
-
-      - name: birdcam
-        image: golang:alpine
-        command: ["go get github.com/danhigham/birdcam && go run $GOPATH/src/github.com/danhigham/birdcam/httpserver/main.go"]
-        ports:
-        - containerPort: 8080
-        env:
-        - name: STREAM_URL 
-          value: https://birdcam.high.am/stream
 ---
 kind: Service
 apiVersion: v1
@@ -51,6 +70,19 @@ spec:
     port: 8080
     targetPort: 8080
 ---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: birdcam
+  name: birdcam-stream-http
+spec:
+  selector:
+    app: birdcam-stream
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -59,12 +91,16 @@ metadata:
 spec:
   tls:
   - hosts:
-    - plot.home.high.am
-    secretName: home-secret
+    - birdcam.high.am
+    secretName: higham-secret
   rules:
-  - host: plot.home.high.am
+  - host: birdcam.high.am
     http:
       paths:
+      - path: /stream
+        backend:
+          serviceName: birdcam-stream-http
+          servicePort: 8080
       - path: /
         backend:
           serviceName: birdcam-http
