@@ -10,7 +10,6 @@
 //
 // 		go run ./cmd/motion-detect/main.go 0
 //
-// +build ignore
 
 package main
 
@@ -30,17 +29,19 @@ import (
 
 const MinimumArea = 1500
 
-var (
-	stream *mjpeg.Stream
-)
+type BirdStream struct {
+	Stream  *mjpeg.Stream
+	Channel chan gocv.Mat
+}
 
 func main() {
 
 	rtspstream := os.Getenv("INPUT_STREAM")
+	callbackURL := os.Getenv("CALLBACK_URL")
 
 	webcam, err := gocv.VideoCaptureFile(rtspstream)
 	if err != nil {
-		fmt.Printf("Error opening stream: %v\n", stream)
+		fmt.Printf("Error opening stream: %v\n", rtspstream)
 		return
 	}
 	defer webcam.Close()
@@ -72,15 +73,17 @@ func main() {
 	mog2 := gocv.NewBackgroundSubtractorMOG2()
 	defer mog2.Close()
 
-	stream = mjpeg.NewStream()
-	c := make(chan gocv.Mat)
+	plainStream := BirdStream{Stream: mjpeg.NewStream(), Channel: make(chan gocv.Mat)}
+	trackingStream := BirdStream{Stream: mjpeg.NewStream(), Channel: make(chan gocv.Mat)}
 
 	go func() {
-		http.Handle("/", stream)
+		http.Handle("/no-tracking", plainStream.Stream)
+		http.Handle("/tracking", trackingStream.Stream)
 		log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
 	}()
 
-	go capture(stream, c)
+	go capture(plainStream)
+	go capture(trackingStream)
 
 	status := "Ready"
 
@@ -93,6 +96,8 @@ func main() {
 		if img.Empty() {
 			continue
 		}
+
+		plainStream.Channel <- img
 
 		status = "Ready"
 		statusColor := color.RGBA{0, 255, 0, 0}
@@ -133,20 +138,23 @@ func main() {
 			statusColor = color.RGBA{255, 0, 0, 0}
 
 			gocv.Rectangle(&img, rect, color.RGBA{255, 0, 0, 0}, 2)
+
+			if callbackURL != "" {
+				http.Get(callbackURL)
+			}
 		}
 
 		gocv.PutText(&img, status, image.Pt(10, 20), gocv.FontHersheyPlain, 1.2, statusColor, 2)
-		c <- img
-
+		trackingStream.Channel <- img
 	}
 
 }
 
-func capture(stream *mjpeg.Stream, c chan gocv.Mat) {
+func capture(birdStream BirdStream) {
 	for {
-		m := <-c
+		m := <-birdStream.Channel
 		buf, _ := gocv.IMEncode(".jpg", m)
-		stream.UpdateJPEG(buf)
+		birdStream.Stream.UpdateJPEG(buf)
 	}
 }
 
