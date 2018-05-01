@@ -77,8 +77,8 @@ func main() {
 	trackingStream := BirdStream{Stream: mjpeg.NewStream(), Channel: make(chan gocv.Mat)}
 
 	go func() {
-		http.Handle("/no-tracking", plainStream.Stream)
-		http.Handle("/tracking", trackingStream.Stream)
+		http.Handle("/stream/no-tracking", plainStream.Stream)
+		http.Handle("/stream/tracking", trackingStream.Stream)
 		log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
 	}()
 
