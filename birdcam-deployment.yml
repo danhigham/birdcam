@@ -17,14 +17,14 @@ spec:
     spec:
       containers:
       - name: birdcam
-        image: golang
+        image: golang:alpine
         command: ["sh"]
-        args: ["-c", "go get github.com/danhigham/birdcam/httpserver && cd $GOPATH/src/github.com/danhigham/birdcam/httpserver && go run main.go"]
+        args: ["-c", "apk update && apk add git && go get github.com/danhigham/birdcam/httpserver && cd $GOPATH/src/github.com/danhigham/birdcam/httpserver && go run main.go"]
         ports:
         - containerPort: 8080
         env:
         - name: STREAM_URL 
-          value: https://birdcam.high.am/stream
+          value: https://birdcam.high.am/stream/tracking
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -45,12 +45,14 @@ spec:
     spec:
       containers:
       - name: videostreamer
-        image: danhigham/videostreamer
-        command: ["videostreamer"]
-        args: ["-verbose=false", "-fcgi=false", "-format=rtsp", "-input=$(INPUT_STREAM)"]
+        image: danhigham/alpine-opencv
+        command: ["birdfinder"]
+        workingDir: /go/src/github.com/danhigham/birdcam/birdfinder
         ports:
         - containerPort: 8080
         env:
+        - name: LD_LIBRARY_PATH
+          value: /usr/local/lib64
         - name: INPUT_STREAM
           valueFrom:
             secretKeyRef:
