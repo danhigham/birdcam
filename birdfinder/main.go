@@ -22,6 +22,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/hybridgroup/mjpeg"
 	"gocv.io/x/gocv"
@@ -36,8 +38,11 @@ type BirdStream struct {
 
 func main() {
 
+	var once sync.Once
+
 	rtspstream := os.Getenv("INPUT_STREAM")
 	callbackURL := os.Getenv("CALLBACK_URL")
+	snapshotSecret := os.Getenv("SNAPSHOT_SECRET")
 
 	webcam, err := gocv.VideoCaptureFile(rtspstream)
 	if err != nil {
@@ -138,16 +143,22 @@ func main() {
 			statusColor = color.RGBA{255, 0, 0, 0}
 
 			gocv.Rectangle(&img, rect, color.RGBA{255, 0, 0, 0}, 2)
+			go func() {
+				once.Do(func() {
+					if callbackURL != "" {
+						http.Get(fmt.Sprintf("%s/%s", callbackURL, snapshotSecret))
+					}
 
-			if callbackURL != "" {
-				http.Get(callbackURL)
-			}
+					time.AfterFunc(time.Minute*5, func() {
+						*&once = sync.Once{}
+					})
+				})
+			}()
 		}
 
 		gocv.PutText(&img, status, image.Pt(10, 20), gocv.FontHersheyPlain, 1.2, statusColor, 2)
 		trackingStream.Channel <- img
 	}
-
 }
 
 func capture(birdStream BirdStream) {

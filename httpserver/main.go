@@ -22,14 +22,15 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.Static("./static"))
 
-	e.GET("/", videostreamer)
+	e.GET("/", index)
+	e.GET("/snapshot/:secret", snapshot)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":8080"))
 
 }
 
-func videostreamer(c echo.Context) error {
+func index(c echo.Context) error {
 	tmplCtx := map[string]string{
 		"stream_url": os.Getenv("STREAM_URL"),
 	}
@@ -45,4 +46,14 @@ func videostreamer(c echo.Context) error {
 	}
 
 	return c.HTML(http.StatusOK, result)
+}
+
+func snapshot(c echo.Context) error {
+	secret := c.Param("secret")
+
+	if secret != os.Getenv("SNAPSHOT_SECRET") {
+		return c.String(http.StatusUnauthorized, "Unauthorized")
+	}
+
+	return c.HTML(http.StatusOK, "OK")
 }
