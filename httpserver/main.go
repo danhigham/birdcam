@@ -106,7 +106,7 @@ func snapshot(c echo.Context) error {
 		if err := wc.Close(); err != nil {
 			return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 	return c.HTML(http.StatusOK, "OK")
 }
