@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"net/http"
 
@@ -70,16 +71,6 @@ func snapshot(c echo.Context) error {
 	snapshotUser := os.Getenv("SNAPSHOT_USER")
 	snapshotPassword := os.Getenv("SNAPSHOT_PASSWORD")
 
-	resp, err := digestGet(snapshotURL, snapshotUser, snapshotPassword)
-
-	if err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
-	}
-
-	defer resp.Body.Close()
-
-	imgBytes, err := ioutil.ReadAll(resp.Body)
-
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
@@ -87,20 +78,36 @@ func snapshot(c echo.Context) error {
 
 	bucket := client.Bucket(bucketName)
 
-	id, _ := uuid.NewV4()
+	for i := 0; i < 5; i++ {
+		resp, err := digestGet(snapshotURL, snapshotUser, snapshotPassword)
 
-	filename := fmt.Sprintf("snapshot-%s.jpg", id)
-	wc := bucket.Object(filename).NewWriter(ctx)
-	wc.ContentType = resp.Header.Get("Content-Type")
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		}
 
-	if _, err := wc.Write(imgBytes); err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		defer resp.Body.Close()
+
+		imgBytes, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		}
+
+		id, _ := uuid.NewV4()
+
+		filename := fmt.Sprintf("snapshot-%s.jpg", id)
+		wc := bucket.Object(filename).NewWriter(ctx)
+		wc.ContentType = resp.Header.Get("Content-Type")
+
+		if _, err := wc.Write(imgBytes); err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		}
+
+		if err := wc.Close(); err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		}
+		time.Sleep(1 * time.Second)
 	}
-
-	if err := wc.Close(); err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
-	}
-
 	return c.HTML(http.StatusOK, "OK")
 }
 
