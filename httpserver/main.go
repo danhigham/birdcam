@@ -16,7 +16,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/aymerick/raymond"
-	"github.com/gobuffalo/uuid"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -93,9 +92,9 @@ func snapshot(c echo.Context) error {
 			return c.String(http.StatusInternalServerError, fmt.Sprintf("%v", err))
 		}
 
-		id, _ := uuid.NewV4()
+		t := int32(time.Now().Unix())
 
-		filename := fmt.Sprintf("snapshot-%s.jpg", id)
+		filename := fmt.Sprintf("snapshot-%d.jpg", t)
 		wc := bucket.Object(filename).NewWriter(ctx)
 		wc.ContentType = resp.Header.Get("Content-Type")
 
